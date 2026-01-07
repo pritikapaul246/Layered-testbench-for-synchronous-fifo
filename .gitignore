@@ -1,0 +1,6 @@
+*.log
+*.ini
+work/
+vsim.wlf
+transcript
+

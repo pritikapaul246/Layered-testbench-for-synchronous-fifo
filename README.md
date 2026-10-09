@@ -2,7 +2,7 @@
 
 This repository contains the **layered testbench verification environment** for a **Synchronous FIFO (First-In-First-Out) hardware design** written in SystemVerilog.
 
-A **synchronous FIFO** is a hardware buffer where **data is written and read in the same clock domain** and **data order is preserved** (first in, first out). It is widely used to manage data flow between modules operating at the same clock frequency. :contentReference[oaicite:0]{index=0}
+A **synchronous FIFO** is a hardware buffer where **data is written and read in the same clock domain** and **data order is preserved** (first in, first out). It is widely used to manage data flow between modules operating at the same clock frequency.
 
 ->Project Overview
 
@@ -19,7 +19,7 @@ A **synchronous FIFO** is a hardware buffer where **data is written and read in 
 
 ->What is a Synchronous FIFO?
 
-A *Synchronous FIFO* is a type of hardware buffer where both *write* and *read* operations occur under the **same clock signal**. It maintains **data order** while managing control flags like **full** and **empty**. :contentReference[oaicite:1]{index=1}
+A *Synchronous FIFO* is a type of hardware buffer where both *write* and *read* operations occur under the **same clock signal**. It maintains **data order** while managing control flags like **full** and **empty**. 
 
 ->Typical FIFO Signals
 | Signal | Direction | Description |

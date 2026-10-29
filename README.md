@@ -1,47 +1,130 @@
-# Layered-testbench-for-synchronous-fifo
+# Synchronous FIFO Verification: Layered SystemVerilog + UVM 1.2
 
-This repository contains the **layered testbench verification environment** for a **Synchronous FIFO (First-In-First-Out) hardware design** written in SystemVerilog.
+Two independent verification environments for the same synchronous FIFO RTL: a hand-built **layered SystemVerilog testbench**, and a **UVM 1.2 testbench** with constrained-random sequences, a reference-model scoreboard, functional coverage and SVA-free flag checking. The UVM environment was validated by **injecting three RTL bugs, all of which it caught**.
 
-A **synchronous FIFO** is a hardware buffer where **data is written and read in the same clock domain** and **data order is preserved** (first in, first out). It is widely used to manage data flow between modules operating at the same clock frequency.
+| | Layered SV TB | UVM 1.2 TB |
+|---|---|---|
+| Location | `tb/layered/` | `tb/uvm/` |
+| Stimulus | generator, mailboxes | sequences + sequencer |
+| Checking | reference model + scoreboard | queue-based scoreboard (cycle-accurate for registered `rdata`) |
+| Coverage | none | covergroup with wr x rd, wr x full, rd x empty crosses |
+| Bug-injection validated | n/a | yes, 3 of 3 detected |
 
-->Project Overview
+## Design Under Test
 
-- **Design Under Test (DUT):** A synchronous FIFO RTL module  
-- **Verification:** Layered testbench architecture to validate functionality  
-- **Language:** SystemVerilog  
-- **Focus:** Modular verification, clear separation between stimulus, checks, and scoreboard
+`rtl/design.sv`, module `fifo_dut`:
 
-->Repository Structure
+- Parameters: `WIDTH = 8`, `DEPTH = 16`
+- Asynchronous, active-high reset
+- Occupancy `count` register drives the `full` and `empty` flags
+- **Registered read data:** `rdata` updates one clock *after* an accepted read (this is why the scoreboard compares one cycle late)
+- Write ignored when full, read ignored when empty
 
-- **rtl/** – RTL design files of the synchronous FIFO  
-- **tb/** – Layered verification testbench sources  
-- **result/** – Simulation outputs (log, waveform dumps)
-
-->What is a Synchronous FIFO?
-
-A *Synchronous FIFO* is a type of hardware buffer where both *write* and *read* operations occur under the **same clock signal**. It maintains **data order** while managing control flags like **full** and **empty**. 
-
-->Typical FIFO Signals
 | Signal | Direction | Description |
-|--------|-----------|-------------|
-| `clk` | Input | Shared system clock |
-| `rst` | Input | Reset signal |
-| `wr_en` | Input | Enable write |
-| `rd_en` | Input | Enable read |
-| `data_in` | Input | FIFO write data |
-| `data_out` | Output | FIFO read data |
-| `full` | Output | Indicates FIFO is full |
-| `empty` | Output | Indicates FIFO is empty |
+|---|---|---|
+| `clk` | in | shared clock |
+| `rst` | in | async reset, active high |
+| `wr_en` | in | write enable |
+| `rd_en` | in | read enable |
+| `wdata[7:0]` | in | write data |
+| `rdata[7:0]` | out | read data (registered) |
+| `full` | out | FIFO full |
+| `empty` | out | FIFO empty |
 
+## Repository Structure
 
-->Layered Testbench Architecture
+```
+rtl/
+  design.sv                      FIFO RTL (fifo_dut) + simple interface
+tb/
+  layered/                       Layered SystemVerilog testbench
+  uvm/                           UVM 1.2 testbench
+    fifo_uvm_if.sv               interface + clocking blocks
+    fifo_item.sv                 sequence item
+    fifo_seq_lib.sv              write / read / simultaneous / random sequences
+    fifo_driver.sv  fifo_monitor.sv  fifo_agent.sv
+    fifo_scoreboard.sv           reference model + data and flag checks
+    fifo_coverage.sv             functional coverage
+    fifo_env.sv  fifo_test.sv  fifo_pkg.sv  tb_top.sv
+    eda_playground_testbench.sv  single-file build for EDA Playground
+result/                          waveforms and bug-injection results
+```
 
-The layered testbench separates verification into logical layers:
+## Layered Testbench (`tb/layered`)
 
-1. **Driver** – Generates transactions to DUT  
-2. **Monitor** – Observes DUT signals  
-3. **Scoreboard** – Compares expected vs. actual results  
-4. **Test sequences** – Defines specific test scenarios  
+Generator, driver, monitor, reference model and scoreboard, connected by mailboxes. The generator constrains stimulus so write and read are never asserted together.
+
+## UVM Testbench (`tb/uvm`)
+
+### Architecture
+
+```
+                 fifo_base_test
+                       |
+                   fifo_env
+        +--------------+----------------+
+        |              |                |
+    fifo_agent   fifo_scoreboard   fifo_coverage
+   +----+-----+          ^                ^
+   |    |     |          |  analysis      |
+ sqr  driver monitor ----+--port----------+
+        |       ^
+        v       |
+     fifo_uvm_if (clocking blocks) <--> fifo_dut
+```
+
+### Components
+
+| Component | What it does |
+|---|---|
+| `fifo_uvm_if` | Interface with separate driver and monitor clocking blocks (race-free sampling) |
+| `fifo_item` | Sequence item: `wr_en`, `rd_en`, `wdata`, plus sampled `rdata`, `full`, `empty`, `rst` |
+| Sequences | Write-only, read-only, **simultaneous write+read**, fully random |
+| `fifo_driver` | Waits for reset release, drives one item per clock, **drives idle when no item is pending** |
+| `fifo_monitor` | Samples every clock through the monitor clocking block and publishes on an analysis port |
+| `fifo_scoreboard` | SystemVerilog-queue reference model. Checks read data one cycle later (matches the registered `rdata`), checks `full`/`empty` against model occupancy every cycle, flushes on reset |
+| `fifo_coverage` | `wr_en x rd_en`, `wr_en x full` (write attempted while full), `rd_en x empty` (read attempted while empty) |
+
+### Test scenario (`fifo_base_test`)
+
+1. 20 writes: fill all 16 entries, then 4 overflow writes
+2. 20 reads: drain, then 4 underflow reads
+3. 8 writes: half fill
+4. 20 simultaneous write+read cycles
+5. 500 constrained-random cycles
+
+## Results
+
+### Clean RTL
+`UVM_ERROR: 0`, `UVM_FATAL: 0`. The test finishes at 5,805 ns.
+
+![clean run waveform](result/uvm.png)
+
+### Bug injection
+To check that the testbench detects failures, three bugs were injected into the RTL, one at a time:
+
+| Bug | RTL change | UVM_ERROR count | Waveform |
+|---|---|---|---|
+| A | `full` asserts at `DEPTH-1` instead of `DEPTH` | 43 | [bug_A](result/bug_A.png) |
+| B | read pointer never increments | 327 | [bug_B](result/bug_B.png) |
+| C | writes accepted while FIFO is full | 334 | [bug_C](result/bug_C.png) |
+
+All three were detected by the scoreboard, with flag and read-data mismatches reported. Details are in [`result/uvm_bug_injection.md`](result/uvm_bug_injection.md).
+
+## How to Run the UVM Testbench
+
+No local simulator needed. Use [EDA Playground](https://www.edaplayground.com):
+
+1. Settings: **SystemVerilog/Verilog**, **UVM 1.2**, simulator **Synopsys VCS**. Leave the default compile options.
+2. Paste `rtl/design.sv` into the **design.sv** pane.
+3. Paste `tb/uvm/eda_playground_testbench.sv` into the **testbench.sv** pane.
+4. Click **Run**. A clean run ends with `UVM_ERROR : 0`.
+
+Note: Aldec Riviera Pro on EDA Playground has no UVM license, so use VCS, Xcelium or Questa.
+
+## Skills Demonstrated
+
+SystemVerilog, UVM 1.2 (agent, sequences, factory, config_db, TLM analysis ports, phases and objections), clocking blocks, constrained-random verification, reference-model scoreboarding, functional coverage, mutation-style bug injection.narios  
 5. **Environment** – Top-level integration of testbench layers
 
 This modular approach improves clarity, reusability, and scalability of the testbench.

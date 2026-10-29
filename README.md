@@ -53,6 +53,12 @@ result/                          waveforms and bug-injection results
 ## Layered Testbench (`tb/layered`)
 
 Generator, driver, monitor, reference model and scoreboard, connected by mailboxes. The generator constrains stimulus so write and read are never asserted together.
+The layered testbench separates verification into logical layers:
+
+**Driver** – Generates transactions to DUT
+**Monitor** – Observes DUT signals
+**Scoreboard** – Compares expected vs. actual results
+**Test sequences** – Defines specific test
 
 ## UVM Testbench (`tb/uvm`)
 

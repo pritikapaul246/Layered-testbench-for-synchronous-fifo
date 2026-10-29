@@ -111,20 +111,7 @@ To check that the testbench detects failures, three bugs were injected into the 
 
 All three were detected by the scoreboard, with flag and read-data mismatches reported. Details are in [`result/uvm_bug_injection.md`](result/uvm_bug_injection.md).
 
-## How to Run the UVM Testbench
-
-No local simulator needed. Use [EDA Playground](https://www.edaplayground.com):
-
-1. Settings: **SystemVerilog/Verilog**, **UVM 1.2**, simulator **Synopsys VCS**. Leave the default compile options.
-2. Paste `rtl/design.sv` into the **design.sv** pane.
-3. Paste `tb/uvm/eda_playground_testbench.sv` into the **testbench.sv** pane.
-4. Click **Run**. A clean run ends with `UVM_ERROR : 0`.
-
-Note: Aldec Riviera Pro on EDA Playground has no UVM license, so use VCS, Xcelium or Questa.
-
 ## Skills Demonstrated
 
-SystemVerilog, UVM 1.2 (agent, sequences, factory, config_db, TLM analysis ports, phases and objections), clocking blocks, constrained-random verification, reference-model scoreboarding, functional coverage, mutation-style bug injection.narios  
+SystemVerilog, UVM 1.2 (agent, sequences, factory, config_db, TLM analysis ports, phases and objections), simulator **Synopsys VCS**, clocking blocks, constrained-random verification, reference-model scoreboarding, functional coverage, mutation-style bug injection.narios  
 5. **Environment** – Top-level integration of testbench layers
-
-This modular approach improves clarity, reusability, and scalability of the testbench.

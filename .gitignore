@@ -4,3 +4,5 @@ work/
 vsim.wlf
 transcript
 
+*.vcd
+.DS_Store

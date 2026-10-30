@@ -104,7 +104,7 @@ The layered testbench separates verification into logical layers. Generator, dri
 ## Results
 
 ### Clean RTL
-`UVM_ERROR: 0`, `UVM_FATAL: 0`. The test finishes at 5,805 ns.
+`UVM_ERROR: 0`, `UVM_FATAL: 0`. 349 read-data checks, 0 mismatches. Functional coverage: 100% (wr x rd, wr x full, rd x empty crosses). The test finishes at 5,805 ns.
 
 ![clean run waveform](result/uvm.png)
 
